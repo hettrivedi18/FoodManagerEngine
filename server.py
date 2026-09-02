@@ -1,6 +1,8 @@
 from fastmcp import FastMCP
 from database import get_connection
 from datetime import date, timedelta
+from sklearn.linear_model import LinearRegression
+
 
 mcp = FastMCP("Food Manager Engine")
 
@@ -28,6 +30,58 @@ def check_waste_risk():
     conn.close()
     return [dict(row) for row in rows]
 
+def get_sales_for_item(item_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(" SELECT date, quantity_sold FROM sales_history WHERE item_id = ?", (item_id,))
+    rows=cursor.fetchall()
+    conn.close()
+    return rows
+
+def prepare_training_data(item_id):
+    rows = get_sales_for_item(item_id)
+    X = []
+    y = []
+    for row in rows:
+        d = date.fromisoformat(row["date"])
+
+        if d.weekday() >= 5:
+            is_weekend = 1
+        else:
+            is_weekend = 0
+
+        X.append([is_weekend])
+        y.append(row["quantity_sold"])
+
+    return X, y
+
+def predict_for_item(item_id, target_is_weekend):
+    X, y = prepare_training_data(item_id)
+    model = LinearRegression()
+    model.fit(X, y)
+    prediction = model.predict([[target_is_weekend]])
+
+    return round(prediction[0], 2)
+
+@mcp.tool()
+def predict_demand(target_date: str):
+    """Predicts how much of each inventory item will sell on a given date (YYYY-MM-DD)."""
+    d = date.fromisoformat(target_date)
+    is_weekend = 1 if d.weekday() >= 5 else 0
+
+    items = get_inventory()  
+
+    results = []
+    for item in items:
+        predicted_qty = int(round(predict_for_item(item["item_id"], is_weekend)))
+        results.append({
+            "item_id": item["item_id"],
+            "name": item["name"],
+            "predicted_quantity": predicted_qty
+        })
+
+    return results
 
 if __name__=="__main__":
     mcp.run()
+    
