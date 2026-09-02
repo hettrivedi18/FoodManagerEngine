@@ -82,6 +82,35 @@ def predict_demand(target_date: str):
 
     return results
 
+@mcp.tool()
+def recommend_order(target_date: str):
+    """Recommends purchase quantities for each inventory item based on predicted demand, current stock, and waste risk."""
+    predicted = predict_demand(target_date)
+    current_inventory = get_inventory()
+    waste_risk_items = check_waste_risk()
+
+    waste_risk_ids = {item["item_id"] for item in waste_risk_items}
+    inventory_lookup = {item["item_id"]: item["quantity"] for item in current_inventory}
+
+    results = []
+    for pred_item in predicted:
+        item_id = pred_item["item_id"]
+        predicted_qty = pred_item["predicted_quantity"]
+        current_qty = inventory_lookup.get(item_id, 0)
+        shortfall = predicted_qty - current_qty
+
+        results.append({
+            "item_id": item_id,
+            "name": pred_item["name"],
+            "current_quantity": current_qty,
+            "predicted_quantity": predicted_qty,
+            "recommended_order_qty": shortfall if shortfall > 0 else 0,
+            "is_waste_risk": item_id in waste_risk_ids
+        })
+
+    return results
+
+
 if __name__=="__main__":
     mcp.run()
     

@@ -12,4 +12,7 @@ async def main():
         demand = await client.call_tool("predict_demand", {"target_date": "2026-08-08"})
         print("PREDICTED DEMAND:", demand)
 
+        recommend = await client.call_tool("recommend_order", {"target_date": "2026-08-08"})
+        print("RECOMMEND ORDER:", recommend)
+
 asyncio.run(main())
