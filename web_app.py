@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from fastmcp import Client
 import asyncio
 import json
@@ -18,6 +18,10 @@ def call_mcp_tool(tool_name, arguments=None):
 
     result = asyncio.run(call())
     return json.loads(result.content[0].text)
+
+@app.route("/")
+def home():
+    return render_template("index.html")
 
 @app.route("/api/inventory")
 def api_inventory():
